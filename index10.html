@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Peta Land Compensation PT Gorby Putra Utama & PT Gorby Energi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #e9eef3;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    #mapdiv { height: 100vh; width: 100%; }
+
+    /* PANEL PENGATURAN */
+    .control-panel {
+      position: fixed;
+      top: 80px;
+      right: -360px;
+      width: 320px;
+      max-height: 85vh;
+      background: #ffffffee;
+      border-radius: 16px 0 0 16px;
+      box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3);
+      padding: 16px 18px;
+      overflow-y: auto;
+      z-index: 1200;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      transition: right 0.5s ease, opacity 0.4s ease;
+    }
+    .control-panel.show { right: 20px; opacity: 1; }
+
+    label { font-weight: 600; font-size: 12px; display: block; margin-top: 6px; color: #333; }
+    select {
+      margin-top: 4px; width: 100%; padding: 5px; border: 1px solid #ccc;
+      border-radius: 5px; font-size: 12px; background: #fafafa;
+    }
+    .checkbox-group label {
+      display: flex; align-items: center; gap: 5px;
+      font-weight: normal; font-size: 12px; margin-top: 4px;
+    }
+    .btn {
+      width: 100%; background: #0078ff; color: white; border: none;
+      padding: 7px 0; border-radius: 6px; cursor: pointer;
+      font-weight: 600; font-size: 12px; transition: background 0.3s; margin-top: 8px;
+    }
+    .btn:hover { background: #005fcc; }
+
+    .legend {
+      background: #fafafa; padding: 8px; border-radius: 10px;
+      line-height: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      font-size: 11px; margin-top: 10px;
+    }
+    .legend span {
+      display: inline-block; width: 12px; height: 12px;
+      margin-right: 5px; border: 1px solid #aaa; vertical-align: middle;
+    }
+
+    details summary {
+      cursor: pointer; font-weight: 600; background: #f1f5fb;
+      padding: 5px 9px; border-radius: 6px; border: 1px solid #cdd5e0; font-size: 12px;
+    }
+    details summary:hover { background: #e7eef8; }
+    details .download-section {
+      padding: 8px; border: 1px solid #cdd5e0; border-top: none;
+      background: #fff; border-radius: 0 0 6px 6px;
+    }
+
+    /* HEADER */
+    .map-header {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 1100; display: flex; align-items: center; gap: 16px;
+      background: #ffffffee; padding: 8px 20px; border-radius: 14px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px);
+    }
+    .logo { height: 36px; width: auto; }
+    .map-title { font-weight: 700; color: #222; text-align: center; font-size: 14px; line-height: 16px; }
+
+    /* TOMBOL GEAR */
+    .gear-btn {
+      position: fixed; top: 20px; right: 25px; z-index: 1300;
+      width: 48px; height: 48px; background: #0078ff; color: white; border: none;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 22px; box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      transition: transform 0.4s ease, background 0.3s;
+    }
+    .gear-btn:hover { background: #005fcc; transform: rotate(90deg); }
+
+    /* TOMBOL STATISTIK */
+    .stat-btn {
+      position: fixed;
+      bottom: 25px;
+      left: 25px;
+      z-index: 1300;
+      width: 48px;
+      height: 48px;
+      background: #0078ff;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 22px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      transition: background 0.3s;
+    }
+    .stat-btn:hover { background: #005fcc; }
+
+    /* POPUP STATISTIK */
+    .stat-popup {
+      position: fixed;
+      bottom: 85px;
+      left: 25px;
+      background: #ffffffee;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      padding: 10px 12px;
+      font-size: 11px;
+      width: 220px;
+      display: none;
+      animation: fadeIn 0.6s ease;
+      z-index: 1200;
+    }
+    .stat-popup.show { display: block; }
+    .stat-popup h4 { margin: 4px 0; font-size: 12px; color: #0078ff; text-align:center; }
+    .stat-popup table { width: 100%; border-collapse: collapse; }
+    .stat-popup th, .stat-popup td { border-bottom: 1px solid #ddd; padding: 2px 4px; text-align: center; }
+    .stat-popup th { background: #f1f5fb; font-weight: 700; }
+
+    /* TABEL ATTRIBUT */
+    .attr-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .attr-table th {
+      background: #0078ff;
+      color: white;
+      padding: 6px;
+      text-align: left;
+    }
+    .attr-table td {
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="mapdiv"></div>
+
+  <!-- PANEL PENGATURAN -->
+  <div class="control-panel" id="controlPanel">
+    <h4>⚙️ Pengaturan Peta</h4>
+    <label for="blokSelect">Pilih Blok:</label>
+    <select id="blokSelect">
+      <option value="ALL">Semua</option>
+      <option value="GPU">Blok GPU</option>
+      <option value="GE">Blok GE</option>
+    </select>
+    <label for="statusSelect">Status Lahan:</label>
+    <select id="statusSelect">
+      <option value="ALL">Semua</option>
+      <option value="Bebas">Bebas</option>
+      <option value="Down Payment">Down Payment</option>
+      <option value="Deal Harga">Deal Harga</option>
+      <option value="Belum bebas">Belum bebas</option>
+    </select>
+    <div class="checkbox-group" style="margin-top: 10px;">
+      <label style="font-weight:700; margin-top:10px;">🌍 Basemap</label>
+      <label><input type="checkbox" id="toggleESRI" checked /> 🛰️ ArcGIS Imagery</label>
+      <label><input type="checkbox" id="toggleOSM" /> 🗺️ OpenStreetMap</label>
+      <label style="font-weight:700; margin-top:10px;">🗺️ Data Layer</label>
+      <label><input type="checkbox" id="toggleWIUP" checked /> WIUP (GPU & GE)</label>
+      <label><input type="checkbox" id="toggleHGU" checked /> 🟡 HGU Lonsum</label>
+      <label><input type="checkbox" id="toggleGPU" checked /> 📘 Database GPU</label>
+      <label><input type="checkbox" id="toggleGE" checked /> 📗 Database GE</label>
+    </div>
+    <details style="margin-top:10px;">
+      <summary>📥 Unduh Data SHP</summary>
+      <div class="download-section">
+        <button class="btn" id="downloadGE">Download SHP GE</button>
+        <button class="btn" id="downloadGPU">Download SHP GPU</button>
+        <button class="btn" id="downloadHGU">Download SHP HGU Lonsum</button>
+      </div>
+    </details>
+    <button class="btn" id="resetFilter">🔄 Reset Filter</button>
+    <div class="legend">
+      <b>Status Lahan</b><br />
+      <span style="background: green"></span>Bebas<br />
+      <span style="background: yellow"></span>Down Payment<br />
+      <span style="background: orange"></span>Deal Harga<br />
+      <span style="background: red"></span>Belum bebas<br />
+      <span style="background: #d4af37"></span>HGU Lonsum
+    </div>
+  </div>
+
+  <!-- TOMBOL GEAR -->
+  <button class="gear-btn" id="gearButton">⚙️</button>
+
+  <!-- TOMBOL STATISTIK -->
+  <button class="stat-btn" id="statButton">📊</button>
+
+  <!-- POPUP STATISTIK -->
+  <div class="stat-popup" id="statPopup">
+    <h4>📊 Statistik Lahan</h4>
+    <table>
+      <thead><tr><th>Status</th><th>GPU</th><th>GE</th></tr></thead>
+      <tbody id="statBody">
+        <tr><td>Bebas</td><td>-</td><td>-</td></tr>
+        <tr><td>Down Payment</td><td>-</td><td>-</td></tr>
+        <tr><td>Deal Harga</td><td>-</td><td>-</td></tr>
+        <tr><td>Belum bebas</td><td>-</td><td>-</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- HEADER -->
+  <div class="map-header">
+    <img src="GPU_LOGO_HD.png" class="logo" alt="Logo GPU" />
+    <div class="map-title">🗺️ Peta Land Compensation<br />PT Gorby Putra Utama & PT Gorby Energi</div>
+    <img src="GE_LOGO_HD.png" class="logo" alt="Logo GE" />
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/esri-leaflet@3.0.8/dist/esri-leaflet.js"></script>
+  <script>
+    const mymap = L.map("mapdiv").setView([-2.5237, 103.1798], 13);
+    const esriImagery = L.esri.basemapLayer("Imagery").addTo(mymap);
+    const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
+
+    const db_ge = L.tileLayer.wms("http://localhost/geoserver/wms?", {
+      layers: "lcgpuge:database_ge",
+      styles: "status_style_gpu",
+      format: "image/png",
+      transparent: true
+    }).addTo(mymap);
+
+    const db_gpu = L.tileLayer.wms("http://localhost/geoserver/wms?", {
+      layers: "lcgpuge:database_gpu",
+      styles: "status_style_gpu",
+      format: "image/png",
+      transparent: true
+    }).addTo(mymap);
+
+    const wiup = L.tileLayer.wms("http://localhost/geoserver/wms?", {
+      layers: "lcgpuge:iup",
+      format: "image/png",
+      transparent: true
+    }).addTo(mymap);
+
+    const hgu_lonsum = L.tileLayer.wms("http://localhost/geoserver/wms?", {
+      layers: "lcgpuge:hgu_lonsum",
+      styles: "hgu_lonsum",
+      format: "image/png",
+      transparent: true
+    }).addTo(mymap);
+
+    function updateLayers() {
+      const blok = document.getElementById("blokSelect").value;
+      const status = document.getElementById("statusSelect").value;
+      let filterCQL = "INCLUDE";
+      if (status !== "ALL") filterCQL = `status='${status}'`;
+
+      mymap.removeLayer(db_ge);
+      mymap.removeLayer(db_gpu);
+      if (blok === "GE") {
+        db_ge.setParams({ CQL_FILTER: filterCQL }); mymap.addLayer(db_ge);
+      } else if (blok === "GPU") {
+        db_gpu.setParams({ CQL_FILTER: filterCQL }); mymap.addLayer(db_gpu);
+      } else {
+        db_ge.setParams({ CQL_FILTER: filterCQL });
+        db_gpu.setParams({ CQL_FILTER: filterCQL });
+        mymap.addLayer(db_ge); mymap.addLayer(db_gpu);
+      }
+    }
+
+    document.getElementById("blokSelect").addEventListener("change", updateLayers);
+    document.getElementById("statusSelect").addEventListener("change", updateLayers);
+
+    document.getElementById("toggleESRI").addEventListener("change", e => e.target.checked ? mymap.addLayer(esriImagery) : mymap.removeLayer(esriImagery));
+    document.getElementById("toggleOSM").addEventListener("change", e => e.target.checked ? mymap.addLayer(osm) : mymap.removeLayer(osm));
+    document.getElementById("toggleWIUP").addEventListener("change", e => e.target.checked ? mymap.addLayer(wiup) : mymap.removeLayer(wiup));
+    document.getElementById("toggleHGU").addEventListener("change", e => e.target.checked ? mymap.addLayer(hgu_lonsum) : mymap.removeLayer(hgu_lonsum));
+    document.getElementById("toggleGPU").addEventListener("change", e => e.target.checked ? mymap.addLayer(db_gpu) : mymap.removeLayer(db_gpu));
+    document.getElementById("toggleGE").addEventListener("change", e => e.target.checked ? mymap.addLayer(db_ge) : mymap.removeLayer(db_ge));
+
+    document.getElementById("resetFilter").addEventListener("click", () => {
+      document.getElementById("blokSelect").value = "ALL";
+      document.getElementById("statusSelect").value = "ALL";
+      updateLayers();
+    });
+
+    const wfs = "http://localhost/geoserver/lcgpuge/ows";
+    document.getElementById("downloadGE").onclick = () => window.open(`${wfs}?service=WFS&version=1.0.0&request=GetFeature&typeName=lcgpuge:database_ge&outputFormat=SHAPE-ZIP`);
+    document.getElementById("downloadGPU").onclick = () => window.open(`${wfs}?service=WFS&version=1.0.0&request=GetFeature&typeName=lcgpuge:database_gpu&outputFormat=SHAPE-ZIP`);
+    document.getElementById("downloadHGU").onclick = () => window.open(`${wfs}?service=WFS&version=1.0.0&request=GetFeature&typeName=lcgpuge:hgu_lonsum&outputFormat=SHAPE-ZIP`);
+
+    // Tombol Panel & Statistik
+    document.getElementById("gearButton").onclick = () => document.getElementById("controlPanel").classList.toggle("show");
+    document.getElementById("statButton").onclick = () => document.getElementById("statPopup").classList.toggle("show");
+
+    // === Statistik GPU & GE (sesuai filter aktif) ===
+async function getCount(layer, status, blok) {
+  // Tentukan CQL_FILTER sesuai blok dan status
+  let filter = "";
+  if (blok && blok !== "ALL") filter += `blok='${blok}'`;
+  if (status && status !== "ALL") filter += (filter ? " AND " : "") + `status='${status}'`;
+  if (!filter) filter = "INCLUDE";
+
+  const url = `${wfs}?service=WFS&version=1.0.0&request=GetFeature&typeName=lcgpuge:${layer}&CQL_FILTER=${encodeURIComponent(filter)}&outputFormat=application/json`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.features.length;
+}
+
+async function updateStatPopup() {
+  const statuses = ["Bebas", "Down Payment", "Deal Harga", "Belum bebas"];
+  const blok = document.getElementById("blokSelect").value;
+  const tbody = document.getElementById("statBody");
+
+  for (let i = 0; i < statuses.length; i++) {
+    const gpuCount = await getCount("database_gpu", statuses[i], blok);
+    const geCount = await getCount("database_ge", statuses[i], blok);
+    tbody.rows[i].cells[1].innerText = gpuCount;
+    tbody.rows[i].cells[2].innerText = geCount;
+  }
+}
+
+// Panggil pertama kali
+updateStatPopup();
+
+// 🔄 Update otomatis setiap 10 menit
+setInterval(updateStatPopup, 600000);
+
+// 🔧 Update juga saat filter berubah
+document.getElementById("blokSelect").addEventListener("change", updateStatPopup);
+document.getElementById("statusSelect").addEventListener("change", updateStatPopup);
+
+     // === Fungsi GetFeatureInfo dengan popup konfirmasi ===
+mymap.on("click", async function (e) {
+  // Popup awal "Tampilkan Informasi"
+  const popup = L.popup({ closeOnClick: false })
+    .setLatLng(e.latlng)
+    .setContent(`
+      <div style="font-family:'Segoe UI',sans-serif;font-size:12px;text-align:center;">
+        <p><b>📍 Lokasi dipilih</b></p>
+        <button id="showInfoBtn" 
+          style="background:#0078ff;color:white;border:none;padding:5px 10px;
+          border-radius:6px;cursor:pointer;font-weight:600;">
+          Tampilkan Informasi
+        </button>
+      </div>
+    `)
+    .openOn(mymap);
+
+  // Tunggu tombol ditekan
+  setTimeout(() => {
+    const btn = document.getElementById("showInfoBtn");
+    if (btn) {
+      btn.onclick = async () => {
+        popup.remove(); // Tutup popup awal
+        const url = getFeatureInfoUrl(e.latlng);
+        try {
+          const res = await fetch(url);
+          const text = await res.text();
+
+          if (text.includes("FeatureCollection")) {
+            const data = JSON.parse(text);
+            if (data.features.length > 0) {
+              const props = data.features[0].properties;
+              const tableRows = Object.entries(props)
+                .map(([key, val]) => `<tr><td><b>${key}</b></td><td>${val ?? "-"}</td></tr>`)
+                .join("");
+              const htmlPopup = `
+                <div style="font-family:'Segoe UI',sans-serif;font-size:12px;">
+                  <h4 style="margin:2px 0 6px;color:#0078ff;">📋 Informasi Atribut</h4>
+                  <table style="width:100%;border-collapse:collapse;">
+                    ${tableRows}
+                  </table>
+                </div>`;
+              L.popup({ maxWidth: 400 })
+                .setLatLng(e.latlng)
+                .setContent(htmlPopup)
+                .openOn(mymap);
+            } else {
+              L.popup().setLatLng(e.latlng).setContent("<i>Tidak ada data di lokasi ini.</i>").openOn(mymap);
+            }
+          } else {
+            L.popup().setLatLng(e.latlng).setContent("<i>Tidak ada informasi yang bisa ditampilkan.</i>").openOn(mymap);
+          }
+        } catch (err) {
+          console.error("GetFeatureInfo error:", err);
+          L.popup()
+            .setLatLng(e.latlng)
+            .setContent("<i>Gagal mengambil data atribut.</i>")
+            .openOn(mymap);
+        }
+      };
+    }
+  }, 200);
+});
+    
+    // === Fungsi GetFeatureInfo untuk menampilkan atribut saat klik peta ===
+  mymap.on("click", async function (e) {
+    const url = getFeatureInfoUrl(e.latlng);
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
+
+      // Parse JSON dari response GetFeatureInfo (jika format GeoJSON digunakan)
+      if (text.includes("FeatureCollection")) {
+        const data = JSON.parse(text);
+        if (data.features.length > 0) {
+          const props = data.features[0].properties;
+          const tableRows = Object.entries(props)
+            .map(([key, val]) => `<tr><td><b>${key}</b></td><td>${val ?? "-"}</td></tr>`)
+            .join("");
+          const htmlPopup = `
+            <div style="font-family:'Segoe UI',sans-serif;font-size:12px;">
+              <h4 style="margin:2px 0 6px;color:#0078ff;">📋 Informasi Atribut</h4>
+              <table class="attr-table-popup" style="width:100%;border-collapse:collapse;">
+                ${tableRows}
+              </table>
+            </div>`;
+          L.popup({ maxWidth: 400 })
+            .setLatLng(e.latlng)
+            .setContent(htmlPopup)
+            .openOn(mymap);
+        } else {
+          L.popup()
+            .setLatLng(e.latlng)
+            .setContent("<i>Tidak ada data di lokasi ini.</i>")
+            .openOn(mymap);
+        }
+      } else {
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent("<i>Tidak ada informasi yang bisa ditampilkan.</i>")
+          .openOn(mymap);
+      }
+    } catch (err) {
+      console.error("GetFeatureInfo error:", err);
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent("<i>Gagal mengambil data atribut.</i>")
+        .openOn(mymap);
+    }
+  });
+
+  // === Membuat URL GetFeatureInfo sesuai layer yang sedang aktif ===
+  function getFeatureInfoUrl(latlng) {
+    const point = mymap.latLngToContainerPoint(latlng, mymap.getZoom());
+    const size = mymap.getSize();
+    const bounds = mymap.getBounds();
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    const params = {
+      service: "WMS",
+      version: "1.1.1",
+      request: "GetFeatureInfo",
+      layers: getActiveLayers(),
+      query_layers: getActiveLayers(),
+      styles: "",
+      bbox: `${sw.lng},${sw.lat},${ne.lng},${ne.lat}`,
+      width: size.x,
+      height: size.y,
+      srs: "EPSG:4326",
+      format: "image/png",
+      info_format: "application/json",
+      x: Math.floor(point.x),
+      y: Math.floor(point.y),
+    };
+    return "http://localhost/geoserver/lcgpuge/wms?" + new URLSearchParams(params).toString();
+  }
+
+  // === Dapatkan layer yang aktif untuk query ===
+  function getActiveLayers() {
+    const active = [];
+    if (mymap.hasLayer(db_ge)) active.push("lcgpuge:database_ge");
+    if (mymap.hasLayer(db_gpu)) active.push("lcgpuge:database_gpu");
+    if (mymap.hasLayer(hgu_lonsum)) active.push("lcgpuge:hgu_lonsum");
+    return active.join(",");
+  }
+
+ // === Popup interaktif + sorot layer + atribut sesuai GeoServer ===
+mymap.on("click", async function (e) {
+  // Popup awal konfirmasi
+  const popup = L.popup({ closeOnClick: false })
+    .setLatLng(e.latlng)
+    .setContent(`
+      <div style="font-family:'Segoe UI',sans-serif;font-size:12px;text-align:center;">
+        <p><b>📍 Lokasi dipilih</b></p>
+        <button id="showInfoBtn" 
+          style="background:#0078ff;color:white;border:none;padding:5px 10px;
+          border-radius:6px;cursor:pointer;font-weight:600;">
+          Tampilkan Informasi
+        </button>
+      </div>
+    `)
+    .openOn(mymap);
+
+  setTimeout(() => {
+    const btn = document.getElementById("showInfoBtn");
+    if (!btn) return;
+
+    btn.onclick = async () => {
+      popup.remove(); // tutup popup awal
+      const url = getFeatureInfoUrl(e.latlng);
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.features || data.features.length === 0) {
+          L.popup().setLatLng(e.latlng).setContent("<i>Tidak ada data di lokasi ini.</i>").openOn(mymap);
+          return;
+        }
+
+        // Buat konten popup untuk semua fitur (jika tumpang tindih)
+        let htmlPopup = `<div style="font-family:'Segoe UI',sans-serif;font-size:12px;max-height:350px;overflow:auto;">`;
+
+        data.features.forEach((feature, index) => {
+          const props = feature.properties;
+
+          // Tentukan warna sorot layer
+          let highlightColor = "#0078ff"; // default
+          const layerName = feature.id || feature.type || feature.layer || "";
+          if (layerName.includes("database_ge")) highlightColor = "#28a745"; 
+          else if (layerName.includes("database_gpu")) highlightColor = "#1e90ff"; 
+          else if (layerName.includes("hgu_lonsum")) highlightColor = "#d4af37"; 
+
+          // Sorot polygon sementara
+          const highlightLayer = L.geoJSON(feature, {
+            style: { color: highlightColor, weight: 3, fillOpacity: 0.1 }
+          }).addTo(mymap);
+          setTimeout(() => mymap.removeLayer(highlightLayer), 4000);
+
+          // Tentukan kategori atribut sesuai GeoServer
+          const kategoriLahan = ["status", "blok", "luas", "hgu"];
+          const kategoriPemilik = ["nama", "alamat", "no_ktp"];
+
+          function createTableSection(title, keys, props) {
+            const rows = keys
+              .filter(k => props[k] !== undefined)
+              .map(k => `<tr>
+                           <td style="padding:4px 6px;font-weight:600;background:#f1f5fb">${k}</td>
+                           <td style="padding:4px 6px;">${props[k] ?? "-"}</td>
+                         </tr>`).join("");
+            if (!rows) return "";
+            return `<h5 style="margin:6px 0 4px;color:#0078ff;">${title}</h5>
+                    <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;">${rows}</table>`;
+          }
+
+          htmlPopup += `
+            <div style="margin-bottom:10px;">
+              <h4 style="margin:2px 0;color:#d35400;">Fitur ${index + 1} (${layerName})</h4>
+              ${createTableSection("🏞️ Info Lahan", kategoriLahan, props)}
+              ${createTableSection("👤 Info Pemilik", kategoriPemilik, props)}
+            </div>
+          `;
+        });
+
+        htmlPopup += `</div>`;
+
+        L.popup({ maxWidth: 450 })
+          .setLatLng(e.latlng)
+          .setContent(htmlPopup)
+          .openOn(mymap);
+
+      } catch (err) {
+        console.error("GetFeatureInfo error:", err);
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent("<i>Gagal mengambil data atribut.</i>")
+          .openOn(mymap);
+      }
+    };
+  }, 200);
+});
+
+// === AUTO-REFRESH WMS LAYER ===
+// Agar WMS selalu menampilkan data terbaru
+setInterval(() => {
+  if (mymap.hasLayer(db_ge)) db_ge.setParams({ _: Date.now() });
+  if (mymap.hasLayer(db_gpu)) db_gpu.setParams({ _: Date.now() });
+  if (mymap.hasLayer(hgu_lonsum)) hgu_lonsum.setParams({ _: Date.now() });
+}, 600000); // refresh tiap 5 detik
+
+// === AUTO-REFRESH STATISTIK WFS ===
+// Agar popup statistik selalu up-to-date
+setInterval(updateStatPopup, 600000); // refresh tiap 10 menit
+  </script>
+</body>
+</html>
